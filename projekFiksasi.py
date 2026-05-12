@@ -1,24 +1,15 @@
 # =========================
 # IMPORT LIBRARY
 # =========================
-
-# streamlit untuk membuat web app
 import streamlit as st
-
-# numpy untuk array/rentang angka
 import numpy as np
-
-# skfuzzy untuk fuzzy logic
 import skfuzzy as fuzz
-
-# control digunakan untuk rule fuzzy
 from skfuzzy import control as ctrl
-
+import pandas as pd # Tambahkan pandas untuk membuat tabel
 
 # =========================
 # JUDUL APLIKASI
 # =========================
-
 st.title("Sistem Rekomendasi Saham dengan Fuzzy Logic")
 
 st.write("""
@@ -31,316 +22,140 @@ tingkat kelayakan saham berdasarkan beberapa kriteria:
 - Dividen
 """)
 
-
-# =========================
-# PILIH SAHAM
-# =========================
-
-# dropdown pilihan saham
-saham = st.selectbox(
-    "Pilih Saham",
-    ["BBCA", "BBRI", "TLKM", "UNVR"]
-)
-
-
 # =========================
 # MEMBUAT VARIABEL FUZZY
 # =========================
 
 # Input fuzzy
-
-# Return saham (0 - 100)
-return_saham = ctrl.Antecedent(
-    np.arange(0, 101, 1),
-    'return_saham'
-)
-
-# Volatilitas (0 - 100)
-volatilitas = ctrl.Antecedent(
-    np.arange(0, 101, 1),
-    'volatilitas'
-)
-
-# Pertumbuhan laba (0 - 100)
-pertumbuhan = ctrl.Antecedent(
-    np.arange(0, 101, 1),
-    'pertumbuhan'
-)
-
-# Utang (0 - 100)
-utang = ctrl.Antecedent(
-    np.arange(0, 101, 1),
-    'utang'
-)
-
-# Dividen (0 - 100)
-dividen = ctrl.Antecedent(
-    np.arange(0, 101, 1),
-    'dividen'
-)
-
+return_saham = ctrl.Antecedent(np.arange(0, 101, 1), 'return_saham')
+volatilitas = ctrl.Antecedent(np.arange(0, 101, 1), 'volatilitas')
+pertumbuhan = ctrl.Antecedent(np.arange(0, 101, 1), 'pertumbuhan')
+utang = ctrl.Antecedent(np.arange(0, 101, 1), 'utang')
+dividen = ctrl.Antecedent(np.arange(0, 101, 1), 'dividen')
 
 # Output fuzzy
-
-# Kelayakan investasi
-kelayakan = ctrl.Consequent(
-    np.arange(0, 101, 1),
-    'kelayakan'
-)
-
+kelayakan = ctrl.Consequent(np.arange(0, 101, 1), 'kelayakan')
 
 # =========================
-# FUNGSI KEANGGOTAAN INPUT
+# FUNGSI KEANGGOTAAN INPUT & OUTPUT
 # =========================
 
-# ---- RETURN ----
+for var in [return_saham, volatilitas, pertumbuhan, utang, dividen]:
+    var['rendah'] = fuzz.trimf(var.universe, [0, 0, 50])
+    var['sedang'] = fuzz.trimf(var.universe, [25, 50, 75])
+    var['tinggi'] = fuzz.trimf(var.universe, [50, 100, 100])
 
-return_saham['rendah'] = fuzz.trimf(
-    return_saham.universe,
-    [0, 0, 50]
-)
-
-return_saham['sedang'] = fuzz.trimf(
-    return_saham.universe,
-    [25, 50, 75]
-)
-
-return_saham['tinggi'] = fuzz.trimf(
-    return_saham.universe,
-    [50, 100, 100]
-)
-
-
-# ---- VOLATILITAS ----
-
-volatilitas['rendah'] = fuzz.trimf(
-    volatilitas.universe,
-    [0, 0, 50]
-)
-
-volatilitas['sedang'] = fuzz.trimf(
-    volatilitas.universe,
-    [25, 50, 75]
-)
-
-volatilitas['tinggi'] = fuzz.trimf(
-    volatilitas.universe,
-    [50, 100, 100]
-)
-
-
-# ---- PERTUMBUHAN LABA ----
-
-pertumbuhan['rendah'] = fuzz.trimf(
-    pertumbuhan.universe,
-    [0, 0, 50]
-)
-
-pertumbuhan['sedang'] = fuzz.trimf(
-    pertumbuhan.universe,
-    [25, 50, 75]
-)
-
-pertumbuhan['tinggi'] = fuzz.trimf(
-    pertumbuhan.universe,
-    [50, 100, 100]
-)
-
-
-# ---- UTANG ----
-
-utang['rendah'] = fuzz.trimf(
-    utang.universe,
-    [0, 0, 50]
-)
-
-utang['sedang'] = fuzz.trimf(
-    utang.universe,
-    [25, 50, 75]
-)
-
-utang['tinggi'] = fuzz.trimf(
-    utang.universe,
-    [50, 100, 100]
-)
-
-
-# ---- DIVIDEN ----
-
-dividen['rendah'] = fuzz.trimf(
-    dividen.universe,
-    [0, 0, 50]
-)
-
-dividen['sedang'] = fuzz.trimf(
-    dividen.universe,
-    [25, 50, 75]
-)
-
-dividen['tinggi'] = fuzz.trimf(
-    dividen.universe,
-    [50, 100, 100]
-)
-
+kelayakan['buruk'] = fuzz.trimf(kelayakan.universe, [0, 0, 50])
+kelayakan['cukup'] = fuzz.trimf(kelayakan.universe, [25, 50, 75])
+kelayakan['baik'] = fuzz.trimf(kelayakan.universe, [50, 100, 100])
 
 # =========================
-# FUNGSI KEANGGOTAAN OUTPUT
-# =========================
-
-kelayakan['buruk'] = fuzz.trimf(
-    kelayakan.universe,
-    [0, 0, 50]
-)
-
-kelayakan['cukup'] = fuzz.trimf(
-    kelayakan.universe,
-    [25, 50, 75]
-)
-
-kelayakan['baik'] = fuzz.trimf(
-    kelayakan.universe,
-    [50, 100, 100]
-)
-
-
-# =========================
-# RULE BASE
+# RULE BASE & SISTEM FUZZY
 # =========================
 
 rules = [
-
-    # Jika return tinggi DAN pertumbuhan tinggi
-    # DAN utang rendah
-    # maka kelayakan baik
-    ctrl.Rule(
-        return_saham['tinggi']
-        & pertumbuhan['tinggi']
-        & utang['rendah'],
-        kelayakan['baik']
-    ),
-
-    # Jika return sedang DAN dividen sedang
-    # maka kelayakan cukup
-    ctrl.Rule(
-        return_saham['sedang']
-        & dividen['sedang'],
-        kelayakan['cukup']
-    ),
-
-    # Jika volatilitas tinggi ATAU utang tinggi
-    # maka kelayakan buruk
-    ctrl.Rule(
-        volatilitas['tinggi']
-        | utang['tinggi'],
-        kelayakan['buruk']
-    ),
-
-    # Jika dividen tinggi DAN volatilitas rendah
-    # maka kelayakan baik
-    ctrl.Rule(
-        dividen['tinggi']
-        & volatilitas['rendah'],
-        kelayakan['baik']
-    ),
-
-    # Jika pertumbuhan rendah
-    # maka kelayakan buruk
-    ctrl.Rule(
-        pertumbuhan['rendah'],
-        kelayakan['buruk']
-    )
+    ctrl.Rule(return_saham['tinggi'] & pertumbuhan['tinggi'] & utang['rendah'], kelayakan['baik']),
+    ctrl.Rule(return_saham['sedang'] & dividen['sedang'], kelayakan['cukup']),
+    ctrl.Rule(volatilitas['tinggi'] | utang['tinggi'], kelayakan['buruk']),
+    ctrl.Rule(dividen['tinggi'] & volatilitas['rendah'], kelayakan['baik']),
+    ctrl.Rule(pertumbuhan['rendah'], kelayakan['buruk'])
 ]
 
-
-# =========================
-# MEMBUAT SISTEM FUZZY
-# =========================
-
 sistem_ctrl = ctrl.ControlSystem(rules)
-
 simulasi = ctrl.ControlSystemSimulation(sistem_ctrl)
 
+# =========================
+# PILIH SAHAM & INPUT USER (TABS)
+# =========================
+st.subheader("Masukkan Nilai Kriteria per Saham")
+
+# 5 Saham Alternatif
+saham_list = ["BBCA", "BBRI", "TLKM", "UNVR", "BMRI"]
+
+# Membuat UI Tabs untuk masing-masing saham agar rapi
+tabs = st.tabs(saham_list)
+
+# Dictionary untuk menyimpan input user
+data_input = {}
+
+for i, saham in enumerate(saham_list):
+    with tabs[i]:
+        st.write(f"**Atur kriteria untuk {saham}**")
+        
+        # Menggunakan kolom agar slider bersebelahan
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            ret = st.slider(f"Return", 0, 100, 70, key=f"ret_{saham}")
+            vol = st.slider(f"Volatilitas", 0, 100, 40, key=f"vol_{saham}")
+            pert = st.slider(f"Pertumbuhan Laba", 0, 100, 75, key=f"pert_{saham}")
+        
+        with col2:
+            utg = st.slider(f"Utang", 0, 100, 30, key=f"utg_{saham}")
+            div = st.slider(f"Dividen", 0, 100, 65, key=f"div_{saham}")
+            
+        # Simpan nilai input ke dalam dictionary
+        data_input[saham] = {
+            'return': ret,
+            'volatilitas': vol,
+            'pertumbuhan': pert,
+            'utang': utg,
+            'dividen': div
+        }
 
 # =========================
-# INPUT USER DENGAN SLIDER
+# PROSES FUZZY & HASIL OUTPUT
 # =========================
+st.markdown("---")
+st.subheader("Tabel Hasil Analisis & Rekomendasi")
 
-st.subheader("Masukkan Nilai Kriteria")
+hasil_akhir = []
 
-nilai_return = st.slider(
-    "Return",
-    0,
-    100,
-    70
+# Looping untuk memproses masing-masing saham ke dalam sistem fuzzy
+for saham in saham_list:
+    simulasi.input['return_saham'] = data_input[saham]['return']
+    simulasi.input['volatilitas'] = data_input[saham]['volatilitas']
+    simulasi.input['pertumbuhan'] = data_input[saham]['pertumbuhan']
+    simulasi.input['utang'] = data_input[saham]['utang']
+    simulasi.input['dividen'] = data_input[saham]['dividen']
+    
+    try:
+        simulasi.compute()
+        skor = simulasi.output['kelayakan']
+    except:
+        # Fallback jika input tidak memicu rule apapun
+        skor = 0.0 
+
+    # Interpretasi Hasil
+    if skor < 40:
+        rekomendasi = "Kurang Layak Investasi 🔴"
+    elif skor < 70:
+        rekomendasi = "Cukup Layak Investasi 🟡"
+    else:
+        rekomendasi = "Layak Investasi 🟢"
+        
+    hasil_akhir.append({
+        "Saham": saham,
+        "Skor Kelayakan": round(skor, 2),
+        "Status Rekomendasi": rekomendasi
+    })
+
+# Konversi hasil ke DataFrame
+df_hasil = pd.DataFrame(hasil_akhir)
+
+# Opsional: Urutkan dari skor tertinggi ke terendah
+df_hasil = df_hasil.sort_values(by="Skor Kelayakan", ascending=False).reset_index(drop=True)
+
+# Tampilkan tabel di Streamlit
+st.dataframe(
+    df_hasil, 
+    use_container_width=True,
+    hide_index=True
 )
 
-nilai_volatilitas = st.slider(
-    "Volatilitas",
-    0,
-    100,
-    40
-)
+st.markdown("---")
+st.subheader("Grafik Perbandingan Kelayakan Saham")
 
-nilai_pertumbuhan = st.slider(
-    "Pertumbuhan Laba",
-    0,
-    100,
-    75
-)
-
-nilai_utang = st.slider(
-    "Utang",
-    0,
-    100,
-    30
-)
-
-nilai_dividen = st.slider(
-    "Dividen",
-    0,
-    100,
-    65
-)
-
-
-# =========================
-# PROSES FUZZY
-# =========================
-
-# memasukkan input ke sistem
-simulasi.input['return_saham'] = nilai_return
-simulasi.input['volatilitas'] = nilai_volatilitas
-simulasi.input['pertumbuhan'] = nilai_pertumbuhan
-simulasi.input['utang'] = nilai_utang
-simulasi.input['dividen'] = nilai_dividen
-
-
-# menghitung fuzzy
-simulasi.compute()
-
-
-# =========================
-# HASIL OUTPUT
-# =========================
-
-hasil = simulasi.output['kelayakan']
-
-st.subheader("Hasil Analisis")
-
-st.write(f"Saham yang dipilih: **{saham}**")
-
-st.write(f"Nilai kelayakan investasi: **{hasil:.2f}**")
-
-
-# =========================
-# INTERPRETASI HASIL
-# =========================
-
-if hasil < 40:
-    st.error("Rekomendasi: Kurang Layak Investasi")
-
-elif hasil < 70:
-    st.warning("Rekomendasi: Cukup Layak Investasi")
-
-else:
-    st.success("Rekomendasi: Layak Investasi")
+# 2. Menampilkan Grafik Bar Chart
+# Menggunakan kolom "Saham" sebagai sumbu X dan "Skor Kelayakan" sebagai sumbu Y
+st.line_chart(data=df_hasil, x="Saham", y="Skor Kelayakan")
