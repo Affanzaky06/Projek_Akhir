@@ -60,7 +60,7 @@ elif menu == "Hitung SPK":
         pilihan_saham = st.multiselect(
             "Pilih Alternatif Saham yang ingin dievaluasi (Pilih beberapa):", 
             options=df_saham['Kode Saham'].tolist(),
-            default=["AALI", "ABMM", "ACES", "BCA", "TLKM"] # Sesuaikan defaultnya jika tidak ada
+            default=["AALI", "ABMM", "ACES", "TLKM"] # Sesuaikan defaultnya jika tidak ada
         )
     
     with col2:
@@ -123,63 +123,46 @@ elif menu == "Hitung SPK":
                     simulasi.input['likuiditas'] = row['Likuiditas']
                     simulasi.input['net_margin'] = row['Net Margin']
                     simulasi.input['gross_margin'] = row['Gross Margin']
-                    
-                    try:
-                        simulasi.compute()
-                        skor = simulasi.output['kelayakan']
-                    except:
-                        # Fallback jika input berada di blind-spot rules
-                        skor = 0.0 
 
-                    if skor < 40:
-                        status = "Kurang Layak 🔴"
-                    elif skor < 70:
-                        status = "Cukup Layak 🟡"
-                    else:
-                        status = "Layak Investasi 🟢"
-                        
-                    hasil_akhir.append({
-                        "Kode Saham": row['Kode Saham'],
-                        "Skor Kelayakan": round(skor, 2),
-                        "Rekomendasi": status
-                    })
-
-                df_hasil = pd.DataFrame(hasil_akhir)
-                
-                # Memfilter dan mengurutkan berdasarkan input User
-                df_hasil = df_hasil[df_hasil['Skor Kelayakan'] >= filter_skor]
-                is_ascending = True if urutan == "Terendah ke Tertinggi" else False
-                df_hasil = df_hasil.sort_values(by="Skor Kelayakan", ascending=is_ascending).reset_index(drop=True)
-
-            # ---------------- 4. TAMPILAN OUTPUT ----------------
-            st.markdown("---")
-            st.subheader("🏆 Tabel Hasil Perangkingan Kelayakan")
-            
-            if len(df_hasil) > 0:
-                # Syarat 2e: Menampilkan tabel hasil perangkingan (st.dataframe)
-                df_hasil.index = np.arange(1, len(df_hasil) + 1) # Set index jadi 1, 2, 3..
-                st.dataframe(df_hasil, use_container_width=True)
-                
-                st.subheader("📊 Visualisasi Bar Chart")
-                # Visualisasi Bar Chart skor kelayakan
-                st.bar_chart(data=df_hasil, x="Kode Saham", y="Skor Kelayakan", color="#4CAF50")
-            else:
-                st.info("Tidak ada saham yang memenuhi batas filter skor minimal.")
             
             # Syarat 5b: Menampilkan proses visualisasi kurva SPK Fuzzy
             st.markdown("---")
-            st.subheader("📈 Proses SPK: Kurva Himpunan Fuzzy")
-            st.write("Visualisasi Fuzzifikasi untuk variabel **Utang (DER)**. Memetakan nilai input 0-100 ke dalam himpunan Rendah, Sedang, dan Tinggi.")
+            st.subheader("📈 Proses SPK: Kurva Himpunan Fuzzy (Membership Functions)")
+            st.write("Visualisasi Fuzzifikasi untuk seluruh variabel yang digunakan dalam sistem.")
             
-            fig, ax = plt.subplots(figsize=(8, 4))
+            # Daftar kriteria yang akan digambar
+            kriteria_list = [
+                {'nama': 'Return', 'warna_rendah': 'r', 'warna_tinggi': 'g'},
+                {'nama': 'Utang (DER)', 'warna_rendah': 'g', 'warna_tinggi': 'r'}, # Utang rendah itu baik (hijau)
+                {'nama': 'Likuiditas', 'warna_rendah': 'r', 'warna_tinggi': 'g'},
+                {'nama': 'Net Margin', 'warna_rendah': 'r', 'warna_tinggi': 'g'},
+                {'nama': 'Gross Margin', 'warna_rendah': 'r', 'warna_tinggi': 'g'},
+                {'nama': 'Kelayakan (OUTPUT)', 'warna_rendah': 'r', 'warna_tinggi': 'g'}
+            ]
+            
             x_val = np.arange(0, 101, 1)
-            ax.plot(x_val, fuzz.trimf(x_val, [0, 0, 50]), 'g', linewidth=1.5, label='Rendah')
-            ax.plot(x_val, fuzz.trimf(x_val, [25, 50, 75]), 'y', linewidth=1.5, label='Sedang')
-            ax.plot(x_val, fuzz.trimf(x_val, [50, 100, 100]), 'r', linewidth=1.5, label='Tinggi')
-            ax.set_title('Fungsi Keanggotaan: Kriteria Utang (DER)')
-            ax.set_ylabel('Derajat Keanggotaan')
-            ax.set_xlabel('Skala Persentil Utang (0-100)')
-            ax.legend()
-            ax.grid(True, alpha=0.3)
             
-            st.pyplot(fig)
+            # Membuat grid layout 2 kolom untuk menampilkan grafik agar rapi
+            col_grafik1, col_grafik2 = st.columns(2)
+            
+            for i, kriteria in enumerate(kriteria_list):
+                fig, ax = plt.subplots(figsize=(6, 3))
+                
+                # Menggambar kurva (Rendah, Sedang, Tinggi)
+                ax.plot(x_val, fuzz.trimf(x_val, [0, 0, 50]), kriteria['warna_rendah'], linewidth=1.5, label='Rendah/Buruk')
+                ax.plot(x_val, fuzz.trimf(x_val, [25, 50, 75]), 'y', linewidth=1.5, label='Sedang/Cukup')
+                ax.plot(x_val, fuzz.trimf(x_val, [50, 100, 100]), kriteria['warna_tinggi'], linewidth=1.5, label='Tinggi/Baik')
+                
+                ax.set_title(f"Fungsi Keanggotaan: {kriteria['nama']}")
+                ax.set_ylabel('Derajat Keanggotaan')
+                ax.set_xlabel('Skala (0-100)')
+                ax.legend(fontsize='small')
+                ax.grid(True, alpha=0.3)
+                
+                # Menempatkan grafik bergantian di kolom kiri dan kanan
+                if i % 2 == 0:
+                    with col_grafik1:
+                        st.pyplot(fig)
+                else:
+                    with col_grafik2:
+                        st.pyplot(fig)
